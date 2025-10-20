@@ -1,0 +1,31 @@
+---
+title: "R EDA Template"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Load Data
+
+```{r}
+# Replace with your path
+# df <- read_csv('your_data.csv')
+```
+
+## Overview
+
+```{r}
+# glimpse(df)
+# summary(df)
+```
+
+## Plot Example
+
+```{r}
+# ggplot(df, aes(x = some_numeric_column)) + geom_histogram()
+```
