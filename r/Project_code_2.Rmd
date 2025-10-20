@@ -1,0 +1,735 @@
+---
+title: "End Semester Project - STA 5207 Applied Regression"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, echo = FALSE, eval = TRUE,  warning = FALSE , fig.width=4, fig.height=4)
+```
+
+# [Project Report]{.underline}
+
+# Group Information:
+
+**Basak Altundas**
+
+**Sidra Farooqui**
+
+# Title
+
+### Analyzing and Predicting House Sale Prices in Ames, Iowa using Linear Regression Modeling in `R`
+
+# 1. Introduction
+
+The price of housing is closely related to the quality of people's lives, and house prices fluctuate at all times. Unraveling the housing-market trends and insights would better enable us to understand what home-buyers and investors are looking for in residential real-state and conclude what property characteristics drive the sale prices of these residential units, allowing us to better predict which properties are favorable and thus, likely to be set at a higher price point.This analysis is also highly beneficial for policy-makers when considering drafting policies that impact certain areas. “The trend of house prices has considerable effects on the economy as a whole. In other words, the housing market is closely related to consumer spending. The increasing trend generally improves confidence and vitalizes greater consumer spending.”^[[1]](https://www.researchgate.net/publication/369437029_Price_Prediction_of_Ames_Housing_Through_Advanced_Regression_Techniques)^
+
+We aim to analyze different factors that affect the sales price of houses in Ames, Iowa thus predicting how likely the property is to get sold at a certain price and catch the attention of an average home-buyer. In our analysis, we would discover in particular which factors are more relevant and significant in estimating a house’s sale pricing. We expect variables such as neighborhood, overall quality, overall condition, year, size of living area, number of bathrooms and number of rooms to be significant when estimating sale price of the house. As a result, our objective is to find a significant multiple linear regression model that predicts the *sale price* of the house.
+
+Our main hypothesis are:
+
+-   Total living area of a house has a strong affect on its sale price
+
+-   Overall Quality and Overall Condition of the house affects its sale price
+
+-   Sales prices of houses of similar characteristics will differ across neighborhoods.
+
+## 1.1 Data Description
+
+The data was originally collected by the Ames City Assessor’s Office, in Ames, Iowa. The Assessor's Office serves as the local governmental body that estimates individual residential property value for taxation purposes and the collator of this dataset for residential properties sold in the area between 2006 and 2010 from its records system. The dataset was further curated by Dean De Cock from Truman State University which involved removal of certain variables to make them more relevant to property sales, focusing more on the “quality and quantity of many physical attributes of the property"^[[2]](https://jse.amstat.org/v19n3/decock.pdf)^ .
+
+This original dataset contained 2930 observations with 82 variables, including 23 nominal, 23 ordinal, 14 discrete, 20 continuous variables and 2 additional observation identifiers.  We are working with a smaller subset of this dataset, modified by our Applied Regression course instructor, Dr. Joshua Loyal to make it more appropriate for us to apply our skills learnt in class. The data was cleaned, missing values and large houses with above ground living more than 1500 square feet removed, along with renaming of variables for better interpretability. It was also filtered to include houses with a “Normal sales condition” and which belong to top 5 neighborhoods with most houses for sale.
+
+## 1.2 Data Dictionary
+
+The full data set contains 766 homes and the following 28 variables, `SalePrice` being our response variable :
+
+-   `SalePrice`: The property's sale price in dollars. A numeric response variable.
+
+-   `LotArea`: Lot size in square feet. A numeric variable.
+
+-   `Neighborhood`: Physical location within Ames city limits. A categorical variable with the following levels:
+
+    -   "NAmes" : North Ames
+    -   "Sawyer" : Sawyer
+    -   "OldTown" : Old Town
+    -   "Edwards" : Edwards
+    -   "CollgCr" : College Creek
+
+-   `OverallQual`: Overall quality of the house's material and finish. The scale ranges from 1 (Very Poor) to 9 (Very Excellent). A numeric variable.
+
+-   `OverallCond`: Overall condition rating. The scale ranges from 1 (Very Poor) to 9 (Very Excellent). A numeric variable.
+
+-   `YearBuilt`: Original construction date. A numeric variable.
+
+-   `YearRemodAdd`: Remodel date. A numeric variable.
+
+-   `BsmtFinSf1`: Type 1 finished square feet. A numeric variable.
+
+-   `BsmtFinSf2`: Type 2 finished square feet. A numeric variable.
+
+-   `TotalBsmtSf`: Total square feet of basement area. A numeric variable.
+
+-   `FirstFlrSf`: First floor square feet. A numeric variable.
+
+-   `SecondFlrSf`: Second floor square feet. A numeric variable.
+
+-   `GrLivArea`: Above grade (ground) living area square feet. A numeric variable.
+
+-   `BsmtFullBath`: Number of full bathrooms in the basement. A numeric variable.
+
+-   `BsmtHalfBath`: Number of half baths in the basement. A numeric variable.
+
+-   `FullBath`: Number of full bathrooms above ground. A numeric variable.
+
+-   `HalfBath`: Number of half baths above ground. A numeric variable.
+
+-   `BedroomAbvGr`: Number of Bedrooms above ground. A numeric variable.
+
+-   `KitchenAbvGr`: Number of Kitchens above ground. A numeric variable.
+
+-   `TotRmsAbvGrd`: Total rooms above ground (does not include bathrooms). A numeric variable.
+
+-   `Fireplaces`: Number of fireplaces. A numeric variable. A numeric variable.
+
+-   `GarageCars`: Size of garage in car capacity. A numeric variable.
+
+-   `GarageArea`: Size of garage in square feet. A numeric variable.
+
+-   `WoodDeckSf`: Wood deck area in square feet. A numeric variable.
+
+-   `OpenPorchSf`: Open porch area in square feet. A numeric variable.
+
+-   `EnclosedPorch`: Enclosed porch area in square feet. A numeric variable.
+
+-   `ThreeSsnPorch`: Three season porch area in square feet. A numeric variable.
+
+-   `ScreenPorch`: Screen porch area in square feet. A numeric variable.
+
+```{r echo= FALSE, eval = FALSE}
+#Evidence of Data
+#The dataset is loaded in R with first- few entries shown:
+library(readr)
+library(tibble)
+
+data_tibble <- readr::read_csv('ames_housing.csv')
+head(data_tibble, n=10)
+
+
+```
+
+## 1.3 Exploratory Data Analysis
+
+To better understand our dataset, we will carry out exploratory data analysis to get an overview of the data.
+
+```{r echo= FALSE , eval = TRUE}
+ames = read.csv('ames_housing.csv')
+library(readr)
+hist(ames$SalePrice,
+xlab = "Sale Price",
+main = "Histogram of Saleprice of houses",
+col = "steelblue",
+border = "white")
+```
+
+The histogram above shows that most sale prices are clustered around \$150,000, with fewer properties below \$100,000 or above \$200,000. The distribution is roughly symmetric, indicating a bell-shaped pattern. However, there are fewer properties with sale prices on the lower end (below USD 100,000) and higher end (above USD 200, 000) indicating the presence of outlier or less frequent extreme sale prices.
+
+```{r echo= FALSE , eval = TRUE}
+# Plot the frequency of houses in each neighborhood
+barplot(table(ames$Neighborhood), 
+        main = "Frequency of Houses by Neighborhood", 
+        xlab = "", 
+        ylab = "Count", 
+        las = 2) # las = 2 rotates the labels for better visibility
+```
+
+Based on the above figure, we can say most of the properties are based in Northern Ames.
+
+```{r}
+ames$Neighborhood <- as.factor(ames$Neighborhood)
+
+plot(OverallQual ~ Neighborhood, data = ames,
+xlab = "Neighborhood",
+ylab = "OverallQuality",
+main = "OverallQuality vs Neighborhoods ",
+las = 2, #labels rotated
+cex.axis = 0.7, #reduce fontsize of xlabels
+pch = 20,
+cex = 1,
+col = "steelblue")
+```
+
+The box plot above compares overall quality across neighborhoods. It shows that neighborhoods like 'CollgCr' generally have higher overall quality, while 'Edwards' and 'OldTown' have lower median quality. Although "Sawyer" shows relatively consistent overall quality, with a narrow range and no significant outliers compared to other neighborhoods, there is still noticeable variation within and between neighborhoods, with some outliers.
+
+```{r}
+ames$Neighborhood <- as.factor(ames$Neighborhood)
+
+plot(SalePrice ~ Neighborhood, data = ames,
+xlab = "Neighborhood",
+ylab = "SalePrice",
+main = "SalePrice by Neighborhood ",
+las = 2, #labels rotated
+cex.axis = 0.7, #reduce fontsize of xlabels
+pch = 20,
+cex = 1,
+col = "steelblue")
+```
+
+'CollgCr' has the highest median sale price, while 'Edwards' and 'OldTown' have lower medians, with 'OldTown' showing more variability. 'Sawyer' has moderate prices with a narrower range, indicating consistency.
+
+```{r}
+#GrLivArea
+plot(SalePrice*0.001 ~ GrLivArea, data = ames,
+xlab = "living area above ground (sq.ft)",
+ylab = "SalePrice (in thousands USD)",
+main = " Sale Price vs Living Area",
+pch = 20,
+#cex = 2,
+#border = "grey",
+col = "darkgreen")
+
+```
+
+Lastly , we can see the indication of a positive relationship between living area and sale price of the property, indicating that larger homes generally have higher sale prices.
+
+# 2. Regression analysis
+
+## 2.1 Data Preparation
+
+The `SalePrice` variable in the dataset will be used as the response variable. Since there are some interchangeable predictors, initially new predictors are created and some of them are removed from the dataset.
+
+\
+Firstly, The variables `YearBuilt` and `YearRemodAdd`, which are defined as dates, are changed to years for better understanding and interpretation. `YearRemodAdd` and `YearBuilt` variables are removed from the dataset.
+
+In the dataset, certain variables are presented both individually and in aggregated forms. For example, basement square feet is provided through three distinct variables: `BsmtFinSf1`, `BsmtFinSf2` and `TotalBsmtSf`. To increase model efficiency and reduce redundancy, we chose to retain only the total variable. A similar approach is applied to the living area and number of rooms data. Additionally, bathroom and porch variables are provided separately, categorized by type and floor. For these variables, we perform an aggregation to simplify their representation.
+
+In terms of garage variables, we decide to keep `GarageCars` because it provides a more practical and interpretable measure of garage utility for potential buyers.
+
+Finally, from the buyer's perspective since home’s living and porch area are more important predictors of sales price, `LotArea` is removed from the dataset.
+
+$YearsSinceRemod = 2024 - YearRemodAdd$
+
+$HouseAge = 2024- YearBuilt$
+
+$TotalBaths = BsmtFullBath + BsmtHalfBath\times0.5+ FullBath + HalfBath\times0.5$
+
+$TotalPorchArea = WoodDeckSf+ OpenPorchSf+ EnclosedPorch+ThreeSsnPorch+ScreenPorch$
+
+## 2.2 Model Selection
+
+**a)Removing Highly Correlated Predictors**
+
+```{r}
+housing=read.csv('ames_housing.csv')
+library(dplyr) 
+data_vars = housing |> 
+    mutate(YearsSinceRemod = 2024-YearRemodAdd) |> 
+    mutate(HouseAge = 2024-YearBuilt) |>
+    dplyr::select(-YearBuilt, -YearRemodAdd)
+    
+
+data_vars = data_vars |> 
+mutate(TotalBaths = BsmtFullBath + BsmtHalfBath * 0.5 +FullBath +HalfBath *0.5) |> 
+dplyr::select(-BsmtFullBath, -BsmtHalfBath, -FullBath, -HalfBath ) 
+
+data_vars = data_vars |> 
+mutate(TotalPorchArea = WoodDeckSf+OpenPorchSf+EnclosedPorch+ThreeSsnPorch+ ScreenPorch) |> 
+dplyr::select (-WoodDeckSf, -OpenPorchSf, -EnclosedPorch, -ThreeSsnPorch, -ScreenPorch)
+
+data_vars = data_vars |>
+dplyr::select (-BsmtFinSf1, -BsmtFinSf2, -FirstFlrSf, -SecondFlrSf)
+data_vars = data_vars |>
+dplyr::select(-BedroomAbvGr, -KitchenAbvGr, -GarageArea, -LotArea)
+```
+
+Since our objective is to obtain a meaningful subset of predictors for analysis, predictors with high correlations are identified to eliminate issues related to collinearity. Response variable `SalePrice` and categorical variable `Neighborhood` are removed from pairwise correlation heat map. 
+
+```{r}
+data_vars |> 
+    dplyr::select(-SalePrice,-Neighborhood) |> 
+    cor() |> 
+    corrplot::corrplot(order = 'hclust',  diag = FALSE)
+```
+
+From this heatmap, we see a pair of highly correlated predictors: (`GrLivArea`, `TotRmsAbvGrd`). In order to prevent collinearity, `TotRmsAbvGrd` is removed from the predictors. The final set of 11 predictors under consideration are 
+
+`Neighborhood`, `OverallCond`, `OverallQual`, `GrLivArea`, `HouseAge`, `Fireplaces,` `TotalPorchArea`, `GarageCars`,`TotalBsmtSf`, `TotalBaths`, and `YearsSinceRemod.`
+
+**b) Model Selection**
+
+Data- splitting is applied before starting analysis. Since we have a large dataset, the data is randomly divided into two equal parts: train and test. In order to make the model understandable and explanatory, variable selection is applied to reduce the number of predictors. AIC and BIC forward selections are implemented. While the AIC method keeps the Fireplace predictor in the model, the BIC model does not include this predictor in the model. As a result, the model obtained using the BIC method, which is preferred for large datasets, is selected to proceed with. Since we want to include Neighborhood, `GrLivArea`, `OverallQual`, and `OverallCond` in the final model to answer our hypotheses, the starting model is `SalePrice` \~ `Neighborhood` + `GrLivArea` + `OverallQual` + `OverallCond`.
+
+```{r}
+set.seed(123)
+
+train_ids = sample(1:nrow(data_vars), size = nrow(data_vars) / 2)
+data_vs = data_vars[train_ids,]  
+data_inf = data_vars[-train_ids,]
+```
+
+```{r}
+mod_start = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond, data = data_vs) 
+mod_step_bic = step (mod_start,trace = FALSE,  direction = 'forward', 
+    SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond+HouseAge+Fireplaces+TotalPorchArea+GarageCars+TotalBsmtSf+TotalBaths+YearsSinceRemod, k = log(nrow(data_vs)))
+```
+
+The BIC election result is summarized in the following table
+
++---------------+-----------------------------------------------------------------------------------------------------------------------------------+--------+
+| Model         | Predictors                                                                                                                        | AIC    |
++---------------+-----------------------------------------------------------------------------------------------------------------------------------+--------+
+| Current Model | Neighborhood, GrLivArea, OverallQual, OverallCond, HouseAge, TotalBsmtSf, GarageCars, TotalPorchArea, TotalBaths, YearsSinceRemod | 7312.0 |
++---------------+-----------------------------------------------------------------------------------------------------------------------------------+--------+
+| Add           | +Fireplaces                                                                                                                       | 7312.6 |
+|               |                                                                                                                                   |        |
+| Fireplaces    |                                                                                                                                   |        |
++---------------+-----------------------------------------------------------------------------------------------------------------------------------+--------+
+
+Based on forward selection with BIC, we use the model $SalePrice= Neigborhood + GrLivArea+ OverallQual+OverallCond+HouseAge+TotalBsmtsf+GarageCars+TotalPorchArea+TotalBaths+YearsSinceRemod$
+
+**c) Final Model**
+
+We begin by fitting an standard Ordinary Least Square (OLS) model with the variables selected using forward selection. Before going through the diagnostics, VIF values ​​are checked to detect collinearity.
+
+```{r}
+model_ols = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + 
+    HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf)
+```
+
+```{r echo = FALSE, eval= FALSE}
+library(car)
+
+car::vif(model_ols)
+```
+
+In this case, all of the VIF’s were less than 5, collinearity was not a problem.
+
+We proceeded by checking the model assumptions starting with linearity and equal variance.
+
+```{r echo = FALSE, eval= TRUE}
+library(olsrr)
+library(lmtest)
+
+ols_plot_resid_fit(model_ols)
+```
+
+The linearity assumption is not violated, the points in the residual plot are randomly scattered around zero. 
+
+```{r}
+library(olsrr)
+library(lmtest)
+
+bptest(model_ols)
+```
+
+The Breusch-Pagan test is used to detect the presence of heteroscedasticity. The p-value for Breusch-Pagan test is 0.06968, we do not reject null hypothesis at alpha=0.05. The residuals are distributed with equal variance.
+
+```{r}
+ols_plot_resid_qq(model_ols)
+shapiro.test(resid(model_ols))
+```
+
+Normality assumption is checked by the Shapiro-Wilk test. The p-value for Shapiro-Wilk test is 0.09508, we do not reject null hypothesis at alpha=0.05. The residuals follow a normal distribution. However, according to the Q-Q plot, there are some deviations at the tails. Therefore, we need to check the high influential points.
+
+```{r}
+names(which(cooks.distance(model_ols) > 4 / nrow(data_inf)))
+```
+
+We have 25 highly influential points in our data set. Because it is a small part of our data set, we remove these points and repeat the assumption checks.
+
+```{r}
+noninf_ids = which(cooks.distance(model_ols) < 4 / nrow(data_inf))
+
+model_ols_noninf = lm( SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf, subset=noninf_ids)
+
+```
+
+```{r}
+bptest(model_ols_noninf)
+shapiro.test(residuals(model_ols_noninf))
+car::vif(model_ols_noninf)
+```
+
+The LINE Assumptions are met and there is no collinearity in the predictors.
+
+One of the questions we wanted to find an answer is whether the sales price of the house differed depending on the region it was located in. Therefore, it is decided that the Neighborhood variable should be tested for significance.
+
+```{r}
+model_ols = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf, subset=noninf_ids)
+model_won=(lm(SalePrice ~ GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod,data = data_inf, subset=noninf_ids))
+anova(model_won, model_ols)
+```
+
+The value of the test statistics F is 9.9322 with a p-value less than 0. 000000129. We reject the null hypothesis and conclude that `Neigborhood` is significant in the $\alpha$ =0.05.
+
+# 3. Discussion
+
+```{r eval = FALSE ,echo = FALSE}
+summary(model_ols)
+```
+
+We look at our model summary and conclude, firstly, the p-value for the $F$ test for the overall significance of the regression is extremely small (\<2.2×10-16), so we conclude that there is a significant linear relationship between the sale price and at least one of the predictors in the model. Furthermore, the $R^2$ is 0.89, which means that 89% of the observed variability in the `SalePrice` is explained by the linear model. The $R^2$ value is relatively high.
+
+```{r eval = FALSE ,echo = FALSE}
+(int_college=coef(model_ols)[1])
+(int_edward=coef(model_ols)[1] + coef(model_ols)[2])
+(int_northames=coef(model_ols)[1] + coef(model_ols)[3])
+(int_oldtown=coef(model_ols)[1] + coef(model_ols)[4])
+(int_sawyer=coef(model_ols)[1] + coef(model_ols)[5])
+```
+
+| Predictors                  | Estimated Values |
+|-----------------------------|------------------|
+| Neighborhood(College Creek) | 21117.02         |
+| Neighborhood(Edwards)       | 13900.14         |
+| Neighborhood(North Ames)    | 22768.96         |
+| Neighborhood(Old Town)      | 18281.03         |
+| Neighborhood(Sawyer)        | 23618.42         |
+| GrLivArea                   | 43.317           |
+| OverallQual                 | 5393.696         |
+| OverallCond                 | 4826.705         |
+| HouseAge                    | -441.643         |
+| TotalBsmtSf                 | 20.621           |
+| GarageCars                  | 5949.779         |
+| TotalPorchArea              | 21.785           |
+| TotalBaths                  | 5827.505         |
+| YearsSinceRemod             | -72.548          |
+
+**Is there a difference in sales price between the neighborhood where the house is located?**
+
+As we tested above, the neighborhood where a property is located has a statistically significant impact on the `SalePrice`, where all the other predictors are same.
+
+In particular, the estimated regression equations for neighborhoods are
+
+$\widehat{\text{SalePrice}_i} =\begin{cases}     21117.02 + 43.317 \cdot \text{GrLivArea}_i + 5393.696 \cdot \text{OverallQual}_i + 4826.705 \cdot \text{OverallCond}_i \\    \quad - 441.643 \cdot \text{HouseAge}_i + 20.621 \cdot \text{TotalBsmtSf}_i + 5949.779 \cdot \text{GarageCars}_i \\    \quad + 21.785 \cdot \text{TotalPorchArea}_i + 5827.505 \cdot \text{TotalBaths}_i - 72.548 \cdot \text{YearsSinceRemod}_i, & \text{for CollegeCreek} \\[1.5em]    13900.14 + 43.317 \cdot \text{GrLivArea}_i + 5393.696 \cdot \text{OverallQual}_i + 4826.705 \cdot \text{OverallCond}_i \\    \quad - 441.643 \cdot \text{HouseAge}_i + 20.621 \cdot \text{TotalBsmtSf}_i + 5949.779 \cdot \text{GarageCars}_i \\    \quad + 21.785 \cdot \text{TotalPorchArea}_i + 5827.505 \cdot \text{TotalBaths}_i - 72.548 \cdot \text{YearsSinceRemod}_i, & \text{for Edwards} \\[1.5em]    22768.96 + 43.317 \cdot \text{GrLivArea}_i + 5393.696 \cdot \text{OverallQual}_i + 4826.705 \cdot \text{OverallCond}_i \\    \quad - 441.643 \cdot \text{HouseAge}_i + 20.621 \cdot \text{TotalBsmtSf}_i + 5949.779 \cdot \text{GarageCars}_i \\    \quad + 21.785 \cdot \text{TotalPorchArea}_i + 5827.505 \cdot \text{TotalBaths}_i - 72.548 \cdot \text{YearsSinceRemod}_i, & \text{for North Ames} \\[1.5em]    18281.03 + 43.317 \cdot \text{GrLivArea}_i + 5393.696 \cdot \text{OverallQual}_i + 4826.705 \cdot \text{OverallCond}_i \\    \quad - 441.643 \cdot \text{HouseAge}_i + 20.621 \cdot \text{TotalBsmtSf}_i + 5949.779 \cdot \text{GarageCars}_i \\    \quad + 21.785 \cdot \text{TotalPorchArea}_i + 5827.505 \cdot \text{TotalBaths}_i - 72.548 \cdot \text{YearsSinceRemod}_i, & \text{for OldTown} \\[1.5em]    23618.42 + 43.317 \cdot \text{GrLivArea}_i + 5393.696 \cdot \text{OverallQual}_i + 4826.705 \cdot \text{OverallCond}_i \\    \quad - 441.643 \cdot \text{HouseAge}_i + 20.621 \cdot \text{TotalBsmtSf}_i + 5949.779 \cdot \text{GarageCars}_i \\    \quad + 21.785 \cdot \text{TotalPorchArea}_i + 5827.505 \cdot \text{TotalBaths}_i - 72.548 \cdot \text{YearsSinceRemod}_i, & \text{for Sawyer}\end{cases}$
+
+In our model, all predictors are significant at the 5% significance level. We can answer the hypothesis posed at the beginning.
+
+**Does the total living area of a house have a strong effect on its sale price?**
+
+There is a significant linear relationship between the sale price and the living area given the other predictors in the model. In particular, if the living area is increased by 1 square foot, and the other predictors are held fixed, the estimated average sale price increases by 43.317 dollars for all Neighborhoods. This shows us that living area has a high impact on the sale price.
+
+**How much do OverallQual and OverallCond impact SalePrice?**
+
+There is a significant linear relationship between the sale price and the overall quality given the other predictors in the model. In particular, if the overall quality is increased by 1 point, and the other predictors are held fixed, the estimated average sale price increases by 5393.696 dollars for all Neighborhoods. If the overall condition is increased by 1 point, and the other predictors are held fixed, the estimated average sale price increases by 4826.705 dollars for all Neighborhoods. This shows us that overall quality and condition have high impact on the sale price, with the overall condition having slightly higher impact among the two criteria.
+
+# 4. Limitations
+
+Our approach only deals with determining if there exists a linear relationship between the predictors in our data set (i.e the property characteristics) and the response variable sale price. There may exist certain nonlinear relationships between the variables and sale price which would require more flexible or complex modeling. There could also be interaction effects between variables that may produce a combined effect on the target variable that we couldnt capture here. Lastly, there could have be a sampling bias in the dataset which would mean our analysis is not reflective of the full range of the housing market conditions of the region.
+
+# 5. Conclusion
+
+To produce a highly accurate and repeatable prediction model using linear regression, the sales price of the house was tried to be estimated using the predictors in Ames. First, aggregation and elimination operations were applied to prevent repetition and correlation in the predictor variables. Then, forward BIC, one of the variable selection methods, was applied to reach our final model. After cleaning the high influential points in our data set, the model assumptions were checked. Since we have a clean and straightforward dataset, no violations were found in the model assumptions. We interpreted the model for the answers to the questions we wanted to reach at the beginning. According to our model, the neighborhood where the house is located makes a difference in terms of sales price. In addition to this, as we initially predicted, our model showed that the size of the living area of the house, the overall condition of the house and the overall quality of the house have a significant effect on the sales price
+
+# 6. Additional Work
+
+Another approach in creating and combining variables included combining `BsmtFinSf1` and `BsmtFinSf2` which can be represented as `TotalBsmtSf` so we would only keep that removing the others, similarly `garageArea` and `GarageCars` convey the same thing so for simplicity we would only be including garage cars
+
+Similarly we would expect `GrLivArea` to cover `FirstFlrSf` and `SecondFlrSf` generally, so we will only be including that and would be combining the full and half bath in basement and above ground.
+
+We then did data splitting and used AIC forward selection, with AIC score of 7313.84 which covered the predictors `Neighborhood` , `GarageCars` , `GrLivArea` , `OverallCond` , `YearBuilt` , `TotalBsmtSf` , `KitchenAbvGr` , `Fireplaces` , `FullBath` , `OpenPorchSf` , `WoodDeckSf` , `ScreenPorch` , `YearRemodAdd` , `BsmtFullBath.` Collinearity didnt seem to be a problem as all VIFs\<5.
+
+Breush pagan test gave a test statistic value of 10.296 and a p-value of 0.6696 at the $\alpha$ = 0.05 significance level. We do not reject the null hypothesis and concluded that the errors have equal variance and are homoescedastic. The fitted vs residual plot is shown below
+
+Along with this to check normality we did the Shapiro Wilk test which gave us a test statistic of 0.99419 and a p-value of 0.1907, at the $\alpha$ = 0.05 significance level, so we do not reject the null and concluded that the errors had a normal distribution.
+
+Based on the AIC score and overall smaller size we preferred the other models to this. The code and execution of this can be seen in the .rmd file of this project.
+
+```{r echo = FALSE, eval = FALSE}
+#install.packages("dplyr")
+ames = read.csv('C:/Users/Acer/Downloads/ames_housing.csv')
+library(dplyr)
+ames = ames |> 
+    mutate(TotalBsmtSf = BsmtFinSf1 + BsmtFinSf2) |> 
+     
+    dplyr::select(-BsmtFinSf1, -BsmtFinSf2)
+```
+
+```{r echo = FALSE, eval = FALSE}
+ames = ames |> 
+    mutate(GrLivArea = FirstFlrSf + SecondFlrSf ) |> 
+    dplyr::select( -FirstFlrSf, -SecondFlrSf)
+```
+
+```{r echo = FALSE, eval = TRUE}
+library(corrplot)
+
+# data.frame containing just the predictors
+ames_preds = dplyr::select(ames, -SalePrice, -Neighborhood, -GarageArea,)
+
+#windows(width = 20, height = 10)
+#round(cor(ames_preds), 2)
+
+corrplot(cor(ames_preds), 
+         method = 'color', order = 'hclust',  diag = FALSE,
+         number.digits = 2, addCoef.col = 'white', tl.pos= 'd', cl.pos ='r',  number.cex = 0.7)
+#windows(width = 20, height = 10)
+```
+
+```{r echo = FALSE, eval = FALSE}
+# # pairwise-correlation heatmap
+# ames |> 
+#     dplyr::select(-SalePrice) |> 
+#     mutate(Neighborhood = as.numeric(Neighborhood) - 1) |> 
+#     cor() |> 
+#     corrplot::corrplot(order = 'hclust',  diag = FALSE)
+```
+
+```{r echo = FALSE, eval = FALSE}
+set.seed(123)
+
+# split the data set in half
+train_set = sample(1:nrow(ames), size = nrow(ames) / 2)
+data_vs = ames[train_set,]   # the variable selection data set
+data_inf = ames[-train_set,] # the data set used for inference
+```
+
+```{r echo = FALSE, eval = FALSE}
+mod_start = lm(SalePrice ~ Neighborhood + GarageCars + GrLivArea + OverallCond, data = data_vs)  # NOTE: using variable selection split
+mod_step = step(mod_start, direction = 'forward',
+    scope = ~ Neighborhood +OverallCond + YearBuilt+ YearRemodAdd+ TotalBsmtSf + GrLivArea + BsmtFullBath + BsmtHalfBath+FullBath
+              +HalfBath + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + GarageCars + WoodDeckSf + OpenPorchSf + EnclosedPorch + ThreeSsnPorch + ScreenPorch )
+```
+
+```{r echo = FALSE, eval = FALSE}
+library(car)
+
+car::vif(model_ols)
+```
+
+```{r echo = FALSE, eval = FALSE}
+bptest(model_ols)
+```
+
+```{r echo = FALSE, eval = TRUE}
+library(olsrr)
+library(lmtest)
+
+ols_plot_resid_fit(model_ols)
+```
+
+```{r echo = FALSE, eval = FALSE}
+shapiro.test(resid(model_ols))
+```
+
+```{r echo = FALSE , eval = TRUE}
+ols_plot_resid_qq(model_ols)
+```
+
+# Code Appendix
+
+While all relevant code is included in the .Rmd attached that generated this pdf we have re-included the code here for reference.The outputs are hidden for simplicity by setting "eval = FALSE"
+
+```{r echo = TRUE, eval = FALSE}
+#Evidence of Data
+#The dataset is loaded in R with first-few entries shown:
+library(readr)
+library(tibble)
+
+data_tibble <- readr::read_csv("C:/Users/Acer/Downloads/ames_housing.csv")
+head(data_tibble, n=10)
+
+```
+
+#### 
+
+```{r echo = TRUE, eval = FALSE}
+ames = read.csv('C:/Users/Acer/Downloads/ames_housing.csv')
+library(readr)
+hist(ames$SalePrice,
+xlab = "Sale Price",
+main = "Histogram of Saleprice of houses",
+col = "steelblue",
+border = "white")
+```
+
+```{r echo = TRUE, eval = FALSE}
+# Plot the frequency of houses in each neighborhood
+barplot(table(ames$Neighborhood), 
+        main = "Frequency of Houses by Neighborhood", 
+        xlab = "", 
+        ylab = "Count", 
+        las = 2) # las = 2 rotates the labels for better visibility
+```
+
+```{r echo = TRUE, eval = FALSE}
+ames$Neighborhood <- as.factor(ames$Neighborhood)
+#Plot OverallQuality vs Neighborhoods
+plot(OverallQual ~ Neighborhood, data = ames,
+xlab = "Neighborhood",
+ylab = "OverallQuality",
+main = "OverallQuality vs Neighborhoods ",
+las = 2, #labels rotated
+cex.axis = 0.7, #reduce fontsize of xlabels
+pch = 20,
+cex = 1,
+col = "steelblue")
+```
+
+```{r echo = TRUE, eval = FALSE}
+#GrLivArea
+#PLOT Sale Price vs Living Area
+plot(SalePrice*0.001 ~ GrLivArea, data = ames,
+xlab = "living area above ground (sq.ft)",
+ylab = "SalePrice (in thousands USD)",
+main = " Sale Price vs Living Area",
+pch = 20,
+#cex = 2,
+#border = "grey",
+col = "darkgreen")
+
+```
+
+```{r echo = TRUE, eval = FALSE}
+ames$Neighborhood <- as.factor(ames$Neighborhood)
+
+plot(SalePrice ~ Neighborhood, data = ames,
+xlab = "Neighborhood",
+ylab = "SalePrice",
+main = "SalePrice by Neighborhood ",
+las = 2, #labels rotated
+cex.axis = 0.7, #reduce fontsize of xlabels
+pch = 20,
+cex = 1,
+col = "steelblue")
+```
+
+```{r echo = TRUE, eval = FALSE}
+#variables creation and dataset preparation
+housing=read.csv('ames_housing.csv')
+library(dplyr) 
+data_vars = housing |> 
+    mutate(YearsSinceRemod = 2024-YearRemodAdd) |> 
+    mutate(HouseAge = 2024-YearBuilt) |>
+    dplyr::select(-YearBuilt, -YearRemodAdd)
+    
+
+data_vars = data_vars |> 
+mutate(TotalBaths = BsmtFullBath + BsmtHalfBath * 0.5 +FullBath +HalfBath *0.5) |> 
+dplyr::select(-BsmtFullBath, -BsmtHalfBath, -FullBath, -HalfBath ) 
+
+data_vars = data_vars |> 
+mutate(TotalPorchArea = WoodDeckSf+OpenPorchSf+EnclosedPorch+ThreeSsnPorch+ ScreenPorch) |> 
+dplyr::select (-WoodDeckSf, -OpenPorchSf, -EnclosedPorch, -ThreeSsnPorch, -ScreenPorch)
+
+data_vars = data_vars |>
+dplyr::select (-BsmtFinSf1, -BsmtFinSf2, -FirstFlrSf, -SecondFlrSf)
+data_vars = data_vars |>
+dplyr::select(-BedroomAbvGr, -KitchenAbvGr, -GarageArea, -LotArea)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#plotting correlation plot
+data_vars |> 
+    dplyr::select(-SalePrice,-Neighborhood) |> 
+    cor() |> 
+    corrplot::corrplot(order = 'hclust',  diag = FALSE)
+```
+
+```{r echo = TRUE, eval = FALSE }
+#data splitting
+set.seed(123)
+
+train_ids = sample(1:nrow(data_vars), size = nrow(data_vars) / 2)
+data_vs = data_vars[train_ids,]  
+data_inf = data_vars[-train_ids,]
+
+```
+
+```{r echo = TRUE, eval = FALSE}
+#using BIC forward selection as the model
+mod_start = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond, data = data_vs) 
+mod_step_bic = step (mod_start, direction = 'forward', 
+    SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond+HouseAge+Fireplaces+TotalPorchArea+GarageCars+TotalBsmtSf+TotalBaths+YearsSinceRemod, k = log(nrow(data_vs)))
+```
+
+```{r echo = TRUE, eval = FALSE}
+#final model
+model_ols = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + 
+    HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#checking VIFs for collinearity diagnostics
+library(car)
+
+car::vif(model_ols)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#Breush Pagan Test for checking Equal Variance violation
+bptest(model_ols)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#plotting qq plots and checking normality violation
+ols_plot_resid_qq(model_ols)
+shapiro.test(resid(model_ols))
+```
+
+```{r echo = TRUE, eval = FALSE}
+#checking for influential observations
+names(which(cooks.distance(model_ols) > 4 / nrow(data_inf)))
+```
+
+```{r echo = TRUE, eval = FALSE}
+#removing influential observations
+noninf_ids = which(cooks.distance(model_ols) < 4 / nrow(data_inf))
+
+model_ols_noninf = lm( SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf, subset=noninf_ids)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#rechecking LINE assumptions
+bptest(model_ols_noninf) #equal variance
+shapiro.test(residuals(model_ols_noninf)) #normality check
+car::vif(model_ols_noninf) # collinearity check
+```
+
+```{r echo = TRUE, eval = FALSE}
+# determining if the variable "Neighborhood" is significant to the model 
+model_ols = lm(SalePrice ~ Neighborhood + GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod, data = data_inf, subset=noninf_ids)
+model_won=(lm(SalePrice ~ GrLivArea + OverallQual + OverallCond + HouseAge + TotalBsmtSf + GarageCars + TotalPorchArea + TotalBaths+YearsSinceRemod,data = data_inf, subset=noninf_ids))
+anova(model_won, model_ols)
+```
+
+```{r echo = TRUE, eval = FALSE}
+#additional work
+# generating 95% confidence intervals and checking for linear relationship significance with a predictor with other predictors in the model.
+library(broom)
+library(stringr)
+library(ggplot2)
+
+# needed for 95% CIs (est +/- crit_val * SE), df = n - p
+crit_val = qt(0.975, df = summary(model_ols_noninf)$df[2], 
+              lower.tail=TRUE)
+
+tidy(model_ols_noninf) |> 
+    filter(term != "(Intercept)", !str_detect(term, "Neighboorhood")) |> 
+    ggplot(aes(estimate, term)) +
+    geom_vline(xintercept = 0, linewidth= 1., lty = 2) +
+    geom_errorbar(linewidth = 0.75, 
+        aes(xmin = estimate - crit_val * std.error, xmax = estimate + crit_val * std.error)) +
+     geom_point(size = 3) +
+    labs(x = "Change in Sale Price", y = NULL, 
+         title = "95% Confidence Intervals") +
+    theme_minimal()
+```
+
+```{r eval = FALSE ,echo = TRUE}
+summary(model_ols) #model summary to see overall results for discussion
+```
+
+```{r  eval = FALSE ,echo = TRUE}
+#generating coefficent values
+(int_college=coef(model_ols)[1])
+(int_edward=coef(model_ols)[1] + coef(model_ols)[2])
+(int_northames=coef(model_ols)[1] + coef(model_ols)[3])
+(int_oldtown=coef(model_ols)[1] + coef(model_ols)[4])
+(int_sawyer=coef(model_ols)[1] + coef(model_ols)[5])
+```
+
+# References
+
+^[1]^ Han, Y. (2023). Price Prediction of Ames Housing Through Advanced Regression Techniques. Journal of BCP Business & Management, 38, 1965-1974.
+
+^[2]^ De Cock, D. (2011). Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project. Journal of Statistics Education, 19, Number 3.  

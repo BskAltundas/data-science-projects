@@ -1,0 +1,326 @@
+---
+title: 'STA 5207: Homework 10'
+date: "Due: Monday, December 2nd by 11:59 PM"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Include your R code in an R chunks as part of your answer. In addition, your written answer to each exercise should be self-contained so that the grader can determine your solution without reading your code or deciphering its output.
+
+## Exercise 1 (The `stackloss` Data Set) [50 points]
+
+For this exercise, we will use the `stackloss` data set from the `faraway` package. You can also find the data in `stackloss.csv` on Canvas. The data set contains operational data of a plant for the oxidation of ammonia to nitric acid. There are 21 observations and the following 4 variables in the data set
+
+-   `Air Flow`: Flow of cooling air.
+-   `Water Temp`: Cooling Water Inlet Temperature.
+-   `Acid Conc.`: Concentration of acid [per 1000, minus 500].
+-   `stack.loss`: Stack loss.
+
+In the following exercise, we will use `stack.loss` as the response and `Air Flow`, `Water Temp`, and `Acid Conc.` as predictors.
+
+1.  (4 points) Perform OLS regression with `stack.loss` as the response and the remaining variables as predictors. Check the normality assumption using a hypothesis test at the $\alpha = 0.05$ significance level. Report the $p$-value of the test and your conclusions.
+
+    ```{r}
+    library(faraway)
+
+    model_ols = lm(stack.loss ~ ., data = stackloss)
+    shapiro.test(resid(model_ols))
+
+    ```
+
+    The value of the test statistic is 0.97399 with a $p$-value of 0.8186, which is greater then the significance level of 0.05. We do not reject the null hypothesis and conclude that the errors have a normal distribution.
+
+2.  (4 points) Perform LAD regression with `stack.loss` as the response and the remaining variables as predictors. Report the estimated regression equation for this model.
+
+    ```{r}
+    library(quantreg)
+    model_lad = rq(stack.loss ~ ., data = stackloss)
+
+    summary(model_lad, alpha = 0.05)
+    ```
+
+    Based on the model summary, the estimated regression equation is
+
+    $stack.loss_i = -39.6899 + 0.8319Air.Flow_i+0.5739Water.Temp_i-0.0609Acid.Conc._i$
+
+3.  (4 points) Perform robust regression using Huber's method with `stack.loss` as the response and the remaining variables as predictors. Use `maxit = 100` iterations for IRWLS. Report the estimated regression equation for this model.
+
+    ```{r}
+    library(MASS)
+
+    model_hub = rlm(stack.loss ~ .,maxit = 100, data = stackloss)
+
+    summary(model_hub)
+    ```
+
+    Based on the model summary, the estimated regression equation is
+
+    $stack.loss_i=-41.0265+0.8294AirFlow_i+0.9261Water.Temp_i-0.1278Acid.Conc._i$
+
+4.  (4 points) Calculate and report the 95% confidence intervals for the intercept and the slope parameters of the model you fit in Question 3 using the residual bootstrap. Use $R = 2000$ bootstrap samples, `method = 'residual'`, and set a seed of 42.
+
+    ```{r}
+    library(car)
+    set.seed(42)
+
+    Confint(Boot(model_hub, R = 2000, method = 'residual'))
+    ```
+
+    The results are summarized in the following table:
+
+    |              |                  |
+    |--------------|------------------|
+    | `Intercept`  | (-64.16, -19.63) |
+    | `Air.Flow`   | (0.57, 1.06)     |
+    | `Water.Temp` | (0.23, 1.61)     |
+    | `Acid.Conc`  | (-0.42, 0.16)    |
+
+5.  (5 points) Create and report a table comparing the OLS, LAD, and Huber estimates for the intercept *and* slope parameters. Bold entries in the table that are significant at the $\alpha = 0.05$ significance level (for OLS use the standard $t$-test). Recall that for LAD, you should set `alpha = 0.05` in the model `summary`.
+
+    ```{r}
+    summary(model_ols)
+    summary(model_lad, alpha = 0.05)
+    summary(model_hub)
+
+    ```
+
+    |           | `Intercept` | `Air.Flow` | `Water.Temp` | `Acid.Conc.` |
+    |-----------|-------------|------------|--------------|--------------|
+    | **OLS**   | **-39.92**  | **0.72**   | **1.30**     | -0.15        |
+    | **LAD**   | **-39.69**  | **0.83**   | **0.57**     | -0.06        |
+    | **Huber** | **-41.03**  | **0.83**   | **0.93**     | -0.13        |
+
+6.  (3 points) Use the OLS model from Question 1 to check for any highly influential data points. Report the observations you determine are highly influential.
+
+    ```{r}
+    which(cooks.distance(model_ols) > 4/length(resid(model_ols)))
+    ```
+
+7.  (3 points) Identify the observations with weights less than one in the Huber fit from Question 3. Report these observations along with their weights. Which (if any) of these observations also have high influence according to Question 6.
+
+    ```{r}
+    library(tidyverse)
+
+    ord = order(model_hub$w)
+
+    as_tibble(cbind(
+        'Observation Number' = row.names(stackloss)[ord], 
+        'Weight' = model_hub$w[ord]       
+    ))
+    ```
+
+    The observation 21 that we found to be an highly influential point, has weight less than 0.5.
+
+8.  (5 points) Fit an OLS regression model with the observations that were highly influential removed. Create a table comparing the OLS estimates from the model in Question 1 with these new estimates. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level according to a standard $t$-test for each model.
+
+    ```{r}
+    model_ols_new = lm(stack.loss ~ ., data = stackloss,
+                               subset = -c(21))
+
+    summary(model_ols_new)
+    ```
+
+    |                | Intercept  | Air.Flow | Water.Temp | Acid.Conc. |
+    |----------------|------------|----------|------------|------------|
+    | **OLS**        | **-39.92** | **0.72** | **1.30**   | -0.15      |
+    | **OLS(Refit)** | **-43.70** | **0.89** | **0.82**   | -0.11      |
+
+9.  (5 points) Fit an LAD regression model with the observations that were highly influential removed. Create a table comparing the parameter estimates from the LAD model in Question 2 with these new estimates. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level.
+
+    ```{r}
+    model_lad_new = rq(stack.loss ~ ., data = stackloss,
+                               subset = -c(21))
+
+    summary(model_lad_new, alpha = 0.05)
+    ```
+
+    |                | Intercept  | Air.Flow | Water.Temp | Acid.Conc. |
+    |----------------|------------|----------|------------|------------|
+    | **LAD**        | **-39.69** | **0.83** | **0.57**   | -0.06      |
+    | **LAD(Refit)** | **-39.99** | **0.83** | **0.56**   | -0.06      |
+
+10. (5 points) Perform robust regression using Huber’s method with the observations that were highly influential removed. Use `maxit = 100` iterations of IRWLS. Calculate and report the 95% confidence intervals for the intercept and slope parameters of this model using the residual bootstrap. Use $R = 2000$ bootstrap samples, `method = 'residual'`, and set a seed of 42.
+
+    ```{r}
+    library(MASS)
+
+    model_hub_new = rlm(stack.loss ~ ., maxit = 100, data = stackloss[-c(21),])
+
+    set.seed(42)
+
+    Confint(Boot(model_hub_new, R = 2000, method = 'residual'))
+    ```
+
+    |              |                  |
+    |--------------|------------------|
+    | `Intercept`  | (-59.95, -22.89) |
+    | `Air.Flow`   | (0.70, 1.14)     |
+    | `Water.Temp` | (0.06, 1.27)     |
+    | `Acid.Conc`  | (-0.34, 0.14)    |
+
+11. (5 points) Create a table comparing the parameter estimates from the model using Huber’s method in Question 3 with the new estimates from the model in Question 10. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level.
+
+    |                  | Intercept  | Air.Flow | Water.Temp | Acid.Conc. |
+    |------------------|------------|----------|------------|------------|
+    | **Huber**        | **-41.03** | **0.83** | **0.93**   | -0.13      |
+    | **Huber(Refit)** | **-42.84** | **0.92** | **0.69**   | -0.11      |
+
+12. (3 points) Based on your answers to Questions 8 - 11 and the difference in the slope estimates, which method is most resistant to the highly influential observations. Justify your answer.
+
+    Based on the answers, estimates from the model using LAD method do not differ. LAD method is most resistant to the highly influential observations.
+
+## Exercise 2 (The `Duncan` Data Set) [50 points]
+
+For this exercise, we will use the `Duncan` data set from the `carData` package. You can also find the data in `Duncan.csv` on Canvas. The data set contains information on the prestige and other characteristics of 45 U.S. occuptations in 1950. There are 45 obervations and the following 4 variables in the data set
+
+-   `type`: Type of occupation (professional and managerial, white-collar, and blue-collar).
+-   `income`: Percentage of occupational incumbents in the 1950 U.S. Census who earned \$3,500 or more per year (about \$36,000 in 2017 U.S. dollars).
+-   `education`: Percentage of occupational incumbents in 1950 who were high school graduates.
+-   `prestige`: Percentage of respondents in a social survey who rated the occupation as "good" or better in prestige.
+
+In the following exercise, we will use `prestige` as the response and `income` and `education` as predictors.
+
+1.  (4 points) Perform OLS regression with `prestige` as the response and `income` and `education` as predictors. Check the normality assumption using a hypothesis test at the $\alpha = 0.05$ significance level. Report the $p$-value of the test and your conclusions.
+
+    ```{r}
+    library(carData)
+
+    model_ols = lm(prestige ~ . - type, data = Duncan)
+    shapiro.test(resid(model_ols))
+    ```
+
+    The value of the test statistic is 0.9825 with a $p$-value of 0.7234, which is greater then the significance level of 0.05. We do not reject the null hypothesis and conclude that the errors have a normal distribution.
+
+2.  (4 points) Perform LAD regression with `prestige` as the response and `income` and `education` as predictors. Report the estimated regression equation for this model.
+
+    ```{r}
+    model_lad = rq(prestige ~ . - type, data = Duncan)
+
+    summary(model_lad, alpha = 0.05)
+
+    ```
+
+    Based on the model summary, the estimated regression equation is
+
+    $prestige_i=-6.4083+0.7477income_i+0.4587education_i$
+
+3.  (4 points) Perform robust regression using Huber's method with `prestige` as the response `income` and `education` as predictors. Use maxit = 50 iterations for IRWLS. Report the estimated regression equation for this model.
+
+    ```{r}
+    model_hub = rlm(prestige ~ . - type, maxit = 50, data = Duncan)
+
+    summary(model_hub)
+    ```
+
+    Based on the model summary, the estimated regression equation is
+
+    $prestige_i=-7.1107+0.7014income_i+0.4854education_i$
+
+4.  (4 points) Calculate and report the 95% confidence intervals for the intercept and the slope parameters of the model you fit in Question 3 using the residual bootstrap. Use $R = 2000$ bootstrap samples, `method = 'residual'`, and set a seed of 42.
+
+    ```{r}
+    set.seed(42)
+
+    Confint(Boot(model_hub, R = 2000, method = 'residual'))
+    ```
+
+    |             |                  |
+    |-------------|------------------|
+    | `Intercept` | (-15.24, 0.1206) |
+    | `income`    | (0.48, 0.93)     |
+    | `education` | (0.31, 0.67)     |
+
+5.  (5 points) Create and report a table comparing the OLS, LAD, and Huber estimates for the intercept *and* slope parameters. Bold entries in the table that are significant at the $\alpha = 0.05$ significance level (for OLS use the standard $t$-test). Recall that for LAD, you should set `alpha = 0.05` in the model `summary`.
+
+    ```{r}
+    summary(model_ols)
+    summary(model_lad, alpha = 0.05)
+    summary(model_hub)
+    ```
+
+    |           | `Intercept` | `income`   | `education` |
+    |-----------|-------------|------------|-------------|
+    | **OLS**   | -6.0647     | **0.5987** | **0.5458**  |
+    | **LAD**   | **-6.4083** | **0.7477** | **0.4587**  |
+    | **Huber** | -7.1107     | **0.7014** | **0.4854**  |
+
+6.  (3 points) Use the OLS model from Question 1 to check for any highly influential data points. Report the observations you determine are highly influential.
+
+    ```{r}
+    which(cooks.distance(model_ols) > 4/length(resid(model_ols)))
+    ```
+
+    In this case, `minister`, `reporter` and `conductor` are highly influential.
+
+7.  (3 points) Identify the five observations that have the lowest weights in the Huber fit from Question 3. Report these observations along with their weights. Which (if any) of these observations also have high influence according to Question 6.
+
+    ```{r}
+    ord = order(model_hub$w)
+
+    as_tibble(cbind(
+        'Observation' = row.names(Duncan)[ord],
+        'Weight' = model_hub$w[ord] ))
+    ```
+
+    In this case, we see that `minister`, `reporter`, `insurance.agent`, `conductor` and `contractor` have lowest weights. `minister`, `reporter` and `conductor` have also high influence.
+
+8.  (5 points) Fit an OLS regression model with the observations that were highly influential removed. Create a table comparing the OLS estimates from the model in Question 1 with these new estimates. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level according to a standard $t$-test for each model.
+
+    ```{r}
+    model_ols_new = lm(prestige ~ . - type, data = Duncan,
+                               subset = -c(6, 9, 16))
+
+    summary(model_ols_new)
+    ```
+
+    |                | Intercept   | income     | education  |
+    |----------------|-------------|------------|------------|
+    | **OLS**        | -6.0647     | **0.5987** | **0.5458** |
+    | **OLS(Refit)** | **-7.2414** | **0.8773** | **0.3538** |
+
+9.  (5 points) Fit an LAD regression model with the observations that were highly influential removed. Create a table comparing the parameter estimates from the LAD model in Question 2 with these new estimates. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level.
+
+    ```{r}
+    model_lad_new = rq(prestige ~ . - type, data = Duncan,
+                               subset = -c(6, 9, 16))
+
+    summary(model_lad_new, alpha = 0.05)
+    ```
+
+    |                | `Intercept` | `income`   | `education` |
+    |----------------|-------------|------------|-------------|
+    | **LAD**        | **-6.4083** | **0.7477** | **0.4587**  |
+    | **LAD(Refit)** | **-8.6163** | **0.8106** | **0.4448**  |
+
+10. (5 points) Perform robust regression using Huber’s method with the observations that were highly influential removed. Use `maxit = 50` iterations of IRWLS. Calculate and report the 95% confidence intervals for the intercept and slope parameters of this model using the residual bootstrap. Use $R = 2000$ bootstrap samples, `method = 'residual'`, and set a seed of 42.
+
+    ```{r}
+    library(MASS)
+
+    model_hub_new = rlm(prestige ~ . - type, maxit = 50, data = Duncan[-c(6, 
+        9, 16),])
+
+    set.seed(42)
+
+    Confint(Boot(model_hub_new, R = 2000, method = 'residual'))
+    ```
+
+    |             |                     |
+    |-------------|---------------------|
+    | `Intercept` | (-14.0367, -1.7009) |
+    | `income`    | (0.6295, 1.0822)    |
+    | `education` | (0.1952, 0.5627)    |
+
+11. (5 points) Create a table comparing the parameter estimates from the model using Huber’s method in Question 3 with the new estimates from the model in Question 10. Bold entries in the table that are statistically significant at the $\alpha = 0.05$ significance level.
+
+    |                  | `Intercept` | `income`   | `education` |
+    |------------------|-------------|------------|-------------|
+    | **Huber**        | -7.1107     | **0.7014** | **0.4854**  |
+    | **Huber(Refit)** | **-7.6103** | **0.8549** | **0.3837**  |
+
+12. (3 points) Based on your answers to Questions 8 - 11 and the difference in the slope estimates, which method is most resistant to the highly influential observations. Justify your answer.
+
+    Based on the answers, estimates from the model using LAD method do not differ much. LAD method is most resistant to the highly influential observations.

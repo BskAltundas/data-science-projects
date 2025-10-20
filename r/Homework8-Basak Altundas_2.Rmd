@@ -1,0 +1,275 @@
+---
+title: 'STA 5207: Homework 8'
+date: "Due: Tuesday, November 12 by 11:59 PM"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warnings = FALSE)
+```
+
+Include your R code in an R chunks as part of your answer. In addition, your written answer to each exercise should be self-contained so that the grader can determine your solution without reading your code or deciphering its output.
+
+## Exercise 1 (The `divusa` Data Set) [50 points]
+
+For this exercise, we will use the `divusa` data set from the `faraway` package. You can also find the data in `divusa.csv` on Canvas. The data set contains information on divorce rates in the USA from 1920 to 1996. The variables in the data set are
+
+-   `year`: the year from 1920-1996.
+
+-   `divorce`: divorce per 1000 women aged 15 or more.
+
+-   `unemployed`: unemployment rate.
+
+-   `femlab`: female participation in labor force aged 16+.
+
+-   `marriage`: marriages per 1000 unmarried women aged 16+.
+
+-   `birth`: births per 1000 women aged 15-44.
+
+-   `military`: military personnel per 1000 population.
+
+In the following exercise, we will model the `divorce` variable in terms of `unemployed`, `femlab`, `marriage`, `birth`, and `military`.
+
+1.  (2 points) The variable `year` is not being used in the model, but it shows that the measurements were taken across time. What does this make you suspect about the error term? No output need.
+
+    The data measures variables depending on years. Therefore, the value of *i* observation should be related to the value of *i-1* observation. We suspect that the errors may not be independent.
+
+2.  (6 points) Fit an OLS regression model with `divorce` as the response and all other variables except `year` as predictors. Check for serial correlation in the errors using a graphical method. Do you feel like the errors are serially correlated? Justify your answer. Include any plots in your response.
+
+    ```{r}
+    library(faraway)
+    data("divusa")
+    model=lm(divorce~.-year, data = divusa)
+    plot(resid(model) ~ year, data = divusa, pch = 20,
+         xlab = 'Year', ylab = 'Residual')
+    abline(h=0, lwd=3, col='steelblue')
+    ```
+
+    In this plot, we see sequences of points above and below the line, which is an indication of serial correlation.
+
+3.  (6 points) Check for the presence of serial correlation in the errors using the Durbin-Watson test. Report the following:
+
+    -   The null and alternative hypotheses.
+    -   The value of the test statistic.
+    -   The $p$-value of the test.
+    -   A statistical decision at the $\alpha = 0.05$ significance level.
+
+    ```{r}
+    library(lmtest)
+
+    dwtest(model, alternative = 'two.sided')
+    ```
+
+    $H_0$ : $\phi = 0$ (uncorralated errors)
+
+    $H_1$: $\phi \neq 0$ (the errors follow an AR(1) process)
+
+    The test statistics is 0.2998 with a $p$-value smaller than 2.2x$10^{-16}$ . We reject the null hypothesis at $\alpha$ =0.05 and conclude that the errors follow an AR(1) process.
+
+4.  (10 points) Model the serial correlation with an AR(1) process, meaning that $\Sigma_{ij} = \phi^{|i-j|}$. Use the ML method to estimate the parameters in the GLS fit. Create and report a table with the OLS estimates (model in part 2) and GLS estimates for the slope parameters.
+
+    ```{r}
+    library(nlme)
+
+    model_gls = gls(divorce ~ . - year, 
+                    correlation = corAR1(form = ~ year),
+                    method = 'ML', data = divusa)
+    coef(model)
+    coef(model_gls)
+
+    ```
+
+    | Model | Intercept | unemployed | femlab | marriage | birth   | military |
+    |-------|-----------|------------|--------|----------|---------|----------|
+    | OLS   | 2.4878    | -0.1113    | 0.3836 | 0.1187   | -0.1299 | -0.0267  |
+    | GLS   | -7.0597   | 0.1076     | 0.3121 | 0.1643   | -0.0499 | 0.0179   |
+
+5.  (10 points) Perform a $t$-test at the 5% significance level for each slope parameter for the OLS model in part 2 and the GLS model in part 4. Are there differences between which predictors are significant in the OLS model and which are significant in the GLS model? If so, state the changes.
+
+    ```{r}
+    summary (model)
+
+    ```
+
+    ```{r}
+    summary (model_gls)
+    ```
+
+    According to the OLS model, the `unemployed` and `military` predictors are not significant. According to the GLS model, only the `military` predictor is not significant.
+
+6.  (5 points) For the GLS model in part 4, calculate and report the variance inflation factor (VIF) for each of the predictors using the `vif` function from the `car` package. Do any of these VIFs suggest we should be cautious about concluding a variable is “not significant” given the other predictors?
+
+    ```{r}
+    library(car)
+
+    car::vif(model_gls)
+    ```
+
+    Since all of the VIF values are below 5, multicollinearity does not appear to be problem.
+
+7.  (5 points) Report the estimated value of the autocorrelation parameter $\phi$ and its associated 95% confidence interval. Does the interval indicate that $\phi$ is significantly different from zero at the 5% significance level?
+
+    ```{r}
+    intervals(model_gls)
+    ```
+
+    This interval does not cover zero, so we conclude that is significantly greater than zero.
+
+8.  (6 points) Check for serial correlation in the normalized errors of the GLS model in part 4 using a graphical method. Do you feel like the normalized errors are serially correlated? Justify your answer. Include any plots in your response.
+
+    ```{r}
+    plot(resid(model_gls, type = 'normalized') ~ year, data = divusa, pch = 20,
+         xlab = 'Year', ylab = 'Normalized Residual')
+
+    abline(h = 0, lwd = 3, col = 'steelblue')
+    ```
+
+    This plot looks better. However, the points still do not seem to be perfectly scattered about the horizontal line.
+
+## Exercise 2 (The `gala` Data Set) [40 points]
+
+For this exercise, we will use the `gala` data set from the `faraway` package. You can also find the data set in `gala.csv` on Canvas. The data set contains the following variables:
+
+-   `Species`: The number of plant species found on the island.
+
+-   `Area`: The area of the island ($\text{km}^2$).
+
+-   `Elevation`: The highest elevation of the island (m).
+
+-   `Nearest`: The distance from the nearest island (km).
+
+-   `Scruz`: The distance from Santa Cruz island (km).
+
+-   `Adjacent`: The area of the adjacent island ($\text{km}^2$).
+
+In the following exercise, we will model `Species` in terms of `Area`, `Elevation`, and `Nearest`.
+
+1.  (5 points) Perform OLS regression with `Species` as the response and `Area`, `Elevation`, and `Nearest` as the predictors. Check the constant variance assumption for this model using a graphical method and a hypothesis test at the $\alpha = 0.05$ significance level. Do you feel it has been violated? Justify your answer. Include any plots in your response.
+
+    ```{r}
+    library("olsrr")
+    model=lm(Species~Area+Elevation+Nearest, data=gala)
+    ols_plot_resid_fit(model)
+
+    ```
+
+    The fitted-vs-residuals plot does not look good. The variance tends to increase as the fitted values increase. The constant variance assumption seems to be violated.
+
+    ```{r}
+    library(lmtest)
+    bptest(model)
+    ```
+
+    The value of the test statistic is 11.184 with a $p$-value of 0.01077. We reject the null hypothesis and conclude that the errors are heteroscedastic.
+
+2.  (8 points) Perform a regression of the absolute value of the residuals from the model in part 1 against the predictors `Area`, `Elevation`, and `Nearest` using OLS. Report the estimated regression equation using all 3 predictors.
+
+    ```{r}
+    model_wts = lm(abs(resid(model)) ~ Area+Elevation+Nearest, data = gala)
+
+    coef(model_wts)
+    ```
+
+    Based on the above output, the estimated regression equation is:
+
+    $|e_i|=5.8680-0.0361Area_i+0.1434Elevation_i-0.2558Nearest_i$
+
+3.  (8 points) Perform WLS using the inverse of the squared fitted values from the model in part 2 as weights, i.e, $\texttt{weights} = 1/\text{(fitted values)}^2$. Create and report a table with the OLS estimates (model in part 1) and WLS estimates for the slope parameters.
+
+    ```{r}
+    weights = 1 / fitted(model_wts)^2
+
+    model_wls = lm(Species~Area+Elevation+Nearest, data = gala, weights = weights)
+    coef(model_wls)
+    ```
+
+    ```{r}
+    coef(model)
+    ```
+
+    | Model | Intercept | Area   | Elevation | Nearest |
+    |-------|-----------|--------|-----------|---------|
+    | OLS   | 16.4647   | 0.0191 | 0.1713    | 0.0712  |
+    | WLS   | 5.6594    | 0.0224 | 0.1740    | 0.4038  |
+
+4.  (8 points) Perform a $t$-test at the 5% significance level for each slope parameter for the OLS model in part 1 and the WLS model in part 3. Are there differences between which predictors are significant in the OLS model and which are significant in the WLS model? If so, state the changes.
+
+    ```{r}
+    summary(model)
+    ```
+
+    ```{r}
+    summary(model_wls)
+    ```
+
+    According to the OLS model, the `Area` and `Nearest` predictors are not significant. According to the WLS model, only the `Area` predictor is not significant.
+
+5.  (5 points) For the WLS model in part 3, calculate and report the variance inflation factor (VIF) for each of the predictors using the `vif` function from the `car` package. Do any of these VIFs suggest we should be cautious about concluding a variable is “not significant” given the other predictors?
+
+    ```{r}
+    library(car)
+
+    car::vif(model_wls)
+    ```
+
+    Since all of the VIF values are below 5, multicollinearity does not appear to be problem.
+
+6.  (6 points) Check the constant variance assumption on the weighted residuals of the WLS model using a a graphical method and a hypothesis test at the $\alpha = 0.05$ significance level. Do you feel that it has been violated? Justify your answer. Include any plots in your response.
+
+    ```{r}
+    library("olsrr")
+    par(mfrow = c(1, 2))
+
+    plot(fitted(model), resid(model), 
+         pch = 20, ylim = c(-10, 15),
+         xlab = 'Fitted Value', ylab = 'Residual')
+
+    abline(h=0, lwd=3, col='steelblue')
+
+
+    plot(fitted(model_wls), weighted.residuals(model_wls), 
+         pch = 20, ylim = c(-10, 15),
+         xlab = 'Fitted Value', ylab = 'Weighted Residual')
+
+    abline(h=0, lwd=3, col='steelblue')
+
+    ```
+
+    This fitted-vs-residuals plot looks better. The difference in the spread between small and large fitted values is smaller.
+
+    ```{r}
+    library(lmtest)
+    bptest(model_wls)
+
+    ```
+
+    The value of the test statistic is 0.000812 with a $p$-value of 1. In this case, we do not reject the null hypothesis and conclude that the errors are homoscedastic.
+
+## Exercise 3 (WLS for Survey Data) [10 points]
+
+For this exercise, we will use the the `chibus` data set, which can be found in `chibus.csv` on Canvas. Each observation in this data set represents a pair of zones in the city of Chicago. The variables in the data set are
+
+-   `computed_time`: travel times, computed from bus timetables augmented by walk times from zone centers to bus-stops (assuming a walking speed of 3 mph) and expected waiting times for the bus (= half of the time between successive buses).
+
+-   `perceived_time`: average travel times as reported to the U.S. Census Bureau by $n$ travelers.
+
+-   `n`: number of travelers per observations for each case.
+
+In the following exercise, we will model `perceived_time` in terms of `computed_time`.
+
+1.  (5 points) The variable `n` is not being used in the model, but it shows that the response is recorded as an average over different groups of size $n_i$. Based on this observation, what would make for a good choice of weights? No output is needed.
+
+    Since response variable is recorded as an average, it may be appropriate to use $n_i$ as weights.
+
+2.  (5 points) Perform WLS with `perceived_time` as the response and `computed_time` as the predictor using the weights you chose in part 1. Report the estimated regression equation for this model.
+
+    ```{r}
+    data=read.csv("chibus.csv")
+    model_wls=lm(perceived_time ~ computed_time, data = data, weights = n)
+    summary(model_wls)
+
+    ```
+
+    Based on the above output, the estimated regression equation is:
+
+    $perceivedtime_i = 2.2931+1.1319computedtime_i$
